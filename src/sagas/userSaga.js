@@ -3,20 +3,30 @@ import {
   FETCH_USERS_REQUEST,
   fetchUsersSuccess,
   fetchUsersFailure,
+  ADD_USER_REQUEST,
+  addUserSuccess,
 } from '../reducers/userReducer';
-import { fetchUsersApi } from '../services/apiService';
+import { fetchUsersFromApi, insertUserToApi } from '../services/apiService';
 
-// Worker Saga: handles fetching data via API service
 function* handleFetchUsers() {
   try {
-    const data = yield call(fetchUsersApi);
-    yield put(fetchUsersSuccess(data));
+    const users = yield call(fetchUsersFromApi);
+    yield put(fetchUsersSuccess(users));
   } catch (error) {
     yield put(fetchUsersFailure(error.message || 'Failed to fetch users'));
   }
 }
 
-// Watcher Saga
-export function* watchFetchUsers() {
+function* handleAddUser(action) {
+  try {
+    const createdUser = yield call(insertUserToApi, action.payload);
+    yield put(addUserSuccess(createdUser));
+  } catch (error) {
+    yield put(fetchUsersFailure(error.message || 'Failed to add user'));
+  }
+}
+
+export default function* userSaga() {
   yield takeLatest(FETCH_USERS_REQUEST, handleFetchUsers);
+  yield takeLatest(ADD_USER_REQUEST, handleAddUser);
 }

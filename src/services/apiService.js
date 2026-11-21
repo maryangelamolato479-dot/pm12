@@ -1,16 +1,38 @@
-import axios from 'axios';
+import { supabase } from '../lib/supabase';
 
-// Create a dedicated Axios instance pointing to JSONPlaceholder API
-const apiClient = axios.create({
-  baseURL: 'https://jsonplaceholder.typicode.com',
-  timeout: 10000,
-  headers: {
-    'Content-Type': 'application/json',
-  },
-});
+export const fetchUsersFromApi = async () => {
+  const { data, error } = await supabase
+    .from('user')
+    .select('*')
+    .order('id', { ascending: true });
 
-// Service function to fetch users list
-export const fetchUsersApi = async () => {
-  const response = await apiClient.get('/users');
-  return response.data;
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return data || [];
+};
+
+export const insertUserToApi = async ({ id, name, email, company }) => {
+  const row = {
+    name: name || null,
+    email: email || null,
+    company: company || null,
+  };
+
+  if (id !== undefined && id !== null && String(id).trim() !== '') {
+    row.id = Number(id);
+  }
+
+  const { data, error } = await supabase
+    .from('user')
+    .insert([row])
+    .select()
+    .single();
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return data;
 };
