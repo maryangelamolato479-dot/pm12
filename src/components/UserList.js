@@ -3,109 +3,101 @@ import {
   View,
   Text,
   TextInput,
+  TouchableOpacity,
   FlatList,
   ActivityIndicator,
-  TouchableOpacity,
   StyleSheet,
-  SafeAreaView,
+  Alert,
 } from 'react-native';
-import { useSelector, useDispatch } from 'react-redux';
-import { fetchUsersRequest, addUserRequest } from '../reducers/userReducer';
+import { useDispatch, useSelector } from 'react-redux';
+import {
+  fetchUsersRequest,
+  createUserRequest,
+  updateUserRequest,
+  deleteUserRequest,
+} from '../reducers/userReducer';
 
 export default function UserList() {
   const dispatch = useDispatch();
   const { users, loading, error } = useSelector((state) => state.userState);
 
-  const [id, setId] = useState('');
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [company, setCompany] = useState('');
+  const [editingId, setEditingId] = useState(null);
 
   useEffect(() => {
     dispatch(fetchUsersRequest());
   }, [dispatch]);
 
-  const handleCreateRecord = () => {
-    if (!name.trim() && !email.trim() && !company.trim() && !id.trim()) {
+  const handleSave = () => {
+    if (!name.trim() || !email.trim()) {
+      Alert.alert('Validation', 'Name and Email are required.');
       return;
     }
 
-    dispatch(
-      addUserRequest({
-        id: id.trim(),
-        name: name.trim(),
-        email: email.trim(),
-        company: company.trim(),
-      })
-    );
+    if (editingId) {
+      dispatch(updateUserRequest({ id: editingId, name, email, company }));
+      setEditingId(null);
+    } else {
+      dispatch(createUserRequest({ name, email, company }));
+    }
 
-    setId('');
     setName('');
     setEmail('');
     setCompany('');
   };
 
-  const renderItem = ({ item, index }) => {
-    const companyName =
-      typeof item.company === 'object' && item.company !== null
-        ? item.company.name
-        : item.company;
-
-    const cardNumber = String(index + 1).padStart(2, '0');
-
-    return (
-      <View style={styles.card}>
-        <View style={styles.numberBadge}>
-          <Text style={styles.numberText}>{cardNumber}</Text>
-        </View>
-
-        <View style={styles.divider} />
-
-        <Text style={styles.fieldLabel}>FULL NAME</Text>
-        <Text style={styles.nameValue}>{item.name || 'NULL'}</Text>
-
-        <View style={styles.subBox}>
-          <Text style={styles.fieldLabel}>RECORD DETAILS</Text>
-          <Text style={styles.detailValue}>ID: {item.id ?? '—'}</Text>
-          <Text style={styles.detailValue}>✉ {item.email || 'NULL'}</Text>
-          <Text style={styles.detailValue}>🏢 {companyName || 'NULL'}</Text>
-        </View>
-      </View>
-    );
+  const handleEdit = (user) => {
+    setEditingId(user.id);
+    setName(user.name || '');
+    setEmail(user.email || '');
+    setCompany(user.company || '');
   };
 
-  return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.topHeader}>
-        <Text style={styles.topEyebrow}>SUPABASE INTEGRATION</Text>
-        <Text style={styles.mainTitle}>User Directory ♥</Text>
-        <Text style={styles.topSubtitle}>
-          Live records fetched from your Supabase table.
-        </Text>
-        <View style={styles.headerDivider} />
-      </View>
+  const handleCancelEdit = () => {
+    setEditingId(null);
+    setName('');
+    setEmail('');
+    setCompany('');
+  };
 
-      <View style={styles.formCard}>
-        <Text style={styles.fieldLabel}>ADD NEW RECORD</Text>
+  const handleDelete = (id) => {
+    dispatch(deleteUserRequest(id));
+  };
+
+  const renderItem = ({ item }) => (
+    <View style={styles.card}>
+      <View style={styles.cardInfo}>
+        <Text style={styles.name}>{item.name || '(No Name)'}</Text>
+        <Text style={styles.detail}>{item.email || '(No Email)'}</Text>
+        <Text style={styles.detail}>Company: {item.company || 'N/A'}</Text>
+      </View>
+      <View style={styles.actions}>
+        <TouchableOpacity style={styles.editBtn} onPress={() => handleEdit(item)}>
+          <Text style={styles.btnText}>Edit</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.deleteBtn} onPress={() => handleDelete(item.id)}>
+          <Text style={styles.btnText}>Delete</Text>
+        </TouchableOpacity>
+      </View>
+    </View>
+  );
+
+  return (
+    <View style={styles.container}>
+      <Text style={styles.header}>Supabase User CRUD</Text>
+
+      <View style={styles.form}>
         <TextInput
           style={styles.input}
-          placeholder="ID (optional, e.g. 143194)"
-          placeholderTextColor="#9a868d"
-          value={id}
-          onChangeText={setId}
-          keyboardType="numeric"
-        />
-        <TextInput
-          style={styles.input}
-          placeholder="Name (e.g. pablo nase)"
-          placeholderTextColor="#9a868d"
+          placeholder="Name"
           value={name}
           onChangeText={setName}
         />
         <TextInput
           style={styles.input}
           placeholder="Email"
-          placeholderTextColor="#9a868d"
           value={email}
           onChangeText={setEmail}
           keyboardType="email-address"
@@ -113,164 +105,70 @@ export default function UserList() {
         />
         <TextInput
           style={styles.input}
-          placeholder="Company (e.g. 1z)"
-          placeholderTextColor="#9a868d"
+          placeholder="Company"
           value={company}
           onChangeText={setCompany}
         />
-        <TouchableOpacity style={styles.addButton} onPress={handleCreateRecord}>
-          <Text style={styles.addButtonText}>+ Save Record</Text>
-        </TouchableOpacity>
+
+        <View style={styles.formButtons}>
+          <TouchableOpacity style={styles.saveBtn} onPress={handleSave}>
+            <Text style={styles.btnText}>{editingId ? 'Update User' : 'Add User'}</Text>
+          </TouchableOpacity>
+          {editingId && (
+            <TouchableOpacity style={styles.cancelBtn} onPress={handleCancelEdit}>
+              <Text style={styles.btnText}>Cancel</Text>
+            </TouchableOpacity>
+          )}
+        </View>
       </View>
 
-      {loading && (
-        <View style={styles.centerContainer}>
-          <ActivityIndicator size="large" color="#b06c82" />
-          <Text style={styles.statusText}>Syncing with Supabase...</Text>
-        </View>
-      )}
+      {error && <Text style={styles.error}>Error: {error}</Text>}
 
-      {error && (
-        <View style={styles.centerContainer}>
-          <Text style={styles.errorText}>Error: {error}</Text>
-          <TouchableOpacity
-            style={styles.retryButton}
-            onPress={() => dispatch(fetchUsersRequest())}
-          >
-            <Text style={styles.retryText}>Retry</Text>
-          </TouchableOpacity>
-        </View>
-      )}
-
-      {!loading && !error && (
+      {loading ? (
+        <ActivityIndicator size="large" color="#2563eb" style={{ marginTop: 20 }} />
+      ) : (
         <FlatList
           data={users}
-          keyExtractor={(item, index) =>
-            item?.id !== undefined ? item.id.toString() : index.toString()
-          }
+          keyExtractor={(item) => String(item.id)}
           renderItem={renderItem}
-          contentContainerStyle={styles.listContainer}
-          ListEmptyComponent={
-            <View style={styles.card}>
-              <Text style={styles.fieldLabel}>STATUS</Text>
-              <Text style={styles.detailValue}>
-                No rows found in the Supabase "user" table yet.
-              </Text>
-            </View>
-          }
+          contentContainerStyle={{ paddingBottom: 30 }}
         />
       )}
-    </SafeAreaView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#fdf6f7' },
-  topHeader: { paddingHorizontal: 24, paddingTop: 24 },
-  topEyebrow: {
-    fontSize: 11,
-    fontWeight: '700',
-    letterSpacing: 2.5,
-    color: '#b58392',
-    marginBottom: 6,
-  },
-  mainTitle: {
-    fontSize: 30,
-    fontWeight: '800',
-    color: '#4a353c',
-    marginBottom: 6,
-  },
-  topSubtitle: { fontSize: 14, color: '#8c777e', marginBottom: 16 },
-  headerDivider: {
-    height: 1,
-    backgroundColor: '#f0dfe3',
-    marginBottom: 16,
-  },
-  formCard: {
-    backgroundColor: '#ffffff',
-    marginHorizontal: 24,
-    marginBottom: 16,
-    padding: 16,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: '#f3e4e8',
-  },
+  container: { flex: 1, padding: 16, paddingTop: 50, backgroundColor: '#f8fafc' },
+  header: { fontSize: 22, fontWeight: 'bold', marginBottom: 14, color: '#0f172a' },
+  form: { backgroundColor: '#fff', padding: 12, borderRadius: 8, marginBottom: 14, elevation: 2 },
   input: {
-    backgroundColor: '#fdf8f9',
     borderWidth: 1,
-    borderColor: '#edd8de',
-    borderRadius: 10,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    fontSize: 14,
-    color: '#3f2e34',
-    marginBottom: 10,
-  },
-  addButton: {
-    backgroundColor: '#b06c82',
-    paddingVertical: 12,
-    borderRadius: 10,
-    alignItems: 'center',
-  },
-  addButtonText: { color: '#ffffff', fontWeight: '700', fontSize: 14 },
-  listContainer: { paddingHorizontal: 24, paddingBottom: 32 },
-  card: {
-    backgroundColor: '#ffffff',
-    borderRadius: 16,
-    padding: 20,
-    marginBottom: 14,
-    borderWidth: 1,
-    borderColor: '#f3e4e8',
-  },
-  numberBadge: {
-    alignSelf: 'flex-start',
-    backgroundColor: '#fbe9ee',
-    paddingHorizontal: 10,
-    paddingVertical: 4,
+    borderColor: '#cbd5e1',
     borderRadius: 6,
-    marginBottom: 12,
+    padding: 10,
+    marginBottom: 8,
+    backgroundColor: '#fff',
   },
-  numberText: { fontSize: 12, fontWeight: '700', color: '#b06c82' },
-  divider: { height: 1, backgroundColor: '#f5eaed', marginBottom: 12 },
-  fieldLabel: {
-    fontSize: 10,
-    fontWeight: '700',
-    letterSpacing: 1.8,
-    color: '#b58392',
-    marginBottom: 6,
-  },
-  nameValue: {
-    fontSize: 19,
-    fontWeight: '700',
-    color: '#3f2e34',
-    marginBottom: 12,
-  },
-  subBox: {
-    backgroundColor: '#fdf8f9',
-    borderRadius: 10,
-    padding: 12,
-    borderWidth: 1,
-    borderColor: '#f7ecee',
-  },
-  detailValue: { fontSize: 14, color: '#6e5c62', marginTop: 4 },
-  centerContainer: {
-    flex: 1,
-    justifyContent: 'center',
+  formButtons: { flexDirection: 'row', gap: 8 },
+  saveBtn: { flex: 1, backgroundColor: '#16a34a', padding: 12, borderRadius: 6, alignItems: 'center' },
+  cancelBtn: { backgroundColor: '#64748b', padding: 12, borderRadius: 6, alignItems: 'center' },
+  card: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
-    padding: 20,
-  },
-  statusText: { marginTop: 10, fontSize: 15, color: '#7d6870' },
-  errorText: {
-    fontSize: 15,
-    color: '#c94a5a',
-    textAlign: 'center',
-    marginBottom: 12,
-  },
-  retryButton: {
-    backgroundColor: '#b06c82',
-    paddingHorizontal: 20,
-    paddingVertical: 10,
+    backgroundColor: '#fff',
+    padding: 12,
     borderRadius: 8,
+    marginBottom: 8,
+    elevation: 1,
   },
-  retryText: { color: '#ffffff', fontWeight: '600' },
+  cardInfo: { flex: 1, paddingRight: 8 },
+  name: { fontSize: 16, fontWeight: 'bold', color: '#1e293b' },
+  detail: { fontSize: 13, color: '#475569', marginTop: 2 },
+  actions: { flexDirection: 'row', gap: 6 },
+  editBtn: { backgroundColor: '#2563eb', paddingVertical: 6, paddingHorizontal: 10, borderRadius: 5 },
+  deleteBtn: { backgroundColor: '#dc2626', paddingVertical: 6, paddingHorizontal: 10, borderRadius: 5 },
+  btnText: { color: '#fff', fontWeight: '600', fontSize: 13 },
+  error: { color: '#dc2626', marginBottom: 10, fontWeight: '600' },
 });

@@ -1,38 +1,38 @@
-import { supabase } from '../lib/supabase';
+import axios from 'axios';
 
-export const fetchUsersFromApi = async () => {
-  const { data, error } = await supabase
-    .from('user')
-    .select('*')
-    .order('id', { ascending: true });
+const SUPABASE_URL = process.env.EXPO_PUBLIC_SUPABASE_URL;
+const SUPABASE_KEY = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
 
-  if (error) {
-    throw new Error(error.message);
-  }
+const supabaseApi = axios.create({
+  baseURL: `${SUPABASE_URL}/rest/v1`,
+  headers: {
+    apikey: SUPABASE_KEY,
+    Authorization: `Bearer ${SUPABASE_KEY}`,
+    'Content-Type': 'application/json',
+    Prefer: 'return=representation',
+  },
+});
 
-  return data || [];
+// READ: Fetch all users
+export const fetchUsersApi = async () => {
+  const response = await supabaseApi.get('/user?select=*&order=id.desc');
+  return response.data;
 };
 
-export const insertUserToApi = async ({ id, name, email, company }) => {
-  const row = {
-    name: name || null,
-    email: email || null,
-    company: company || null,
-  };
+// CREATE: Insert a new user
+export const createUserApi = async (userData) => {
+  const response = await supabaseApi.post('/user', userData);
+  return response.data[0];
+};
 
-  if (id !== undefined && id !== null && String(id).trim() !== '') {
-    row.id = Number(id);
-  }
+// UPDATE: Update an existing user by id
+export const updateUserApi = async ({ id, ...updates }) => {
+  const response = await supabaseApi.patch(`/user?id=eq.${id}`, updates);
+  return response.data[0];
+};
 
-  const { data, error } = await supabase
-    .from('user')
-    .insert([row])
-    .select()
-    .single();
-
-  if (error) {
-    throw new Error(error.message);
-  }
-
-  return data;
+// DELETE: Delete a user by id
+export const deleteUserApi = async (id) => {
+  await supabaseApi.delete(`/user?id=eq.${id}`);
+  return id;
 };
